@@ -1,0 +1,12 @@
+[package]
+name = "battleship"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+battleship-core = { path = "../../core" }
+# pin bytemuck derive to avoid issues with needing edition 2024
+bytemuck_derive = "~1.8.0"
+risc0-zkvm = { version = "1.2.5", default-features = false, features = ['std'] }

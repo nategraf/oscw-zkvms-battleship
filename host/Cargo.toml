@@ -1,0 +1,13 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+battleship-core = { workspace = true }
+# pin bytemuck derive to avoid issues with needing edition 2024
+bytemuck_derive = "~1.8.1"
+guests = { path = "../guests" }
+risc0-zkvm = { workspace = true, features = ["client"] }
+serde = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
