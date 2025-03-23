@@ -188,6 +188,7 @@ impl GameState {
             }
         }
 
+        self.ships.push(new_ship);
         true
     }
 
@@ -225,20 +226,23 @@ impl Distribution<GameState> for StandardUniform {
 
         // Place the ships from largest to smallest, and using the shuffled positions.
         let mut state = GameState::new(rng.random());
-        for ship_class in ShipClass::list() {
+        'outer: for ship_class in ShipClass::list() {
             for pos in positions.iter() {
                 let dir = rng.random();
                 if state.add(Ship::new(*ship_class, *pos, dir)) {
-                    break;
+                    continue 'outer;
                 }
                 if state.add(Ship::new(*ship_class, *pos, dir.flip())) {
-                    break;
+                    continue 'outer;
                 }
             }
+            unreachable!("did not find a position to place {:?}", ship_class);
         }
 
         // The resulting state should always be valid.
-        assert!(state.check());
+        if !state.check() {
+            panic!("state is invalid: {:?}", state);
+        }
         state
     }
 }

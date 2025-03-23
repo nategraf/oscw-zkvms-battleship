@@ -4,10 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-battleship-core = { workspace = true }
+anyhow = { workspace = true }
+battleship-core = { workspace = true, features = ["rand"] }
+battleship-guests = { path = "../guests" }
 # pin bytemuck derive to avoid issues with needing edition 2024
 bytemuck_derive = "~1.8.1"
-guests = { path = "../guests" }
+inquire = "0.7.5"
+rand = { workspace = true }
+regex = "1"
 risc0-zkvm = { workspace = true, features = ["client"] }
 serde = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

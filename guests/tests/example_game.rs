@@ -1,7 +1,7 @@
 use battleship_core::{
     Direction, GameState, HitType, Position, RoundCommit, RoundInput, Ship, ShipClass,
 };
-use guests::{INIT_ELF, ROUND_ELF};
+use battleship_guests::{INIT_ELF, ROUND_ELF};
 use risc0_zkvm::{default_executor, ExecutorEnv};
 
 // Run the round function once for each round and confirm the state evolves as expected.
