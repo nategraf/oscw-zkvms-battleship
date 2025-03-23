@@ -6,5 +6,11 @@ edition = "2021"
 [build-dependencies]
 risc0-build = { workspace = true }
 
+[dev-dependencies]
+anyhow = { workspace = true }
+battleship-core = { workspace = true }
+rand = { workspace = true }
+risc0-zkvm = { workspace = true, features = ["default"] }
+
 [package.metadata.risc0]
 methods = ["battleship"]

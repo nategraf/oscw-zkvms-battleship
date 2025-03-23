@@ -10,5 +10,10 @@
   "rust-analyzer.check.command": "clippy",
   "rust-analyzer.check.extraArgs": [
     "--target-dir=target/analyzer"
-  ]
+  ],
+  "rust-analyzer.check.extraEnv": {
+    "RISC0_SKIP_BUILD": "1",
+    "RISC0_SKIP_BUILD_KERNELS": "1",
+    "CARGO_TARGET_DIR": "target/analyzer"
+  }
 }

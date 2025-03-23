@@ -108,7 +108,7 @@ pub struct RoundOutput {
     pub hit: HitType,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RoundCommit {
     pub old_state: Digest,
     pub new_state: Digest,
@@ -340,9 +340,9 @@ mod tests {
         // 2|                     |
         // 3|     A               |
         // 4|     A               |
-        // 5|     A         DDD   |
+        // 5|     A         SSS   |
         // 6|     A               |
-        // 7|     A   C     EE    |
+        // 7|     A   C     DD    |
         // 8|         C           |
         // 9|         C           |
         let state = GameState {
@@ -368,9 +368,9 @@ mod tests {
         // 2|     C               |
         // 3|     *               |
         // 4|     *               |
-        // 5|     A         DDD   |
+        // 5|     A         SSS   |
         // 6|     A               |
-        // 7|     A         EE    |
+        // 7|     A         DD    |
         // 8|                     |
         // 9|                     |
         let state = GameState {
@@ -483,5 +483,14 @@ mod tests {
             HitType::Sunk(ShipClass::Battleship)
         );
         assert_eq!(state, expected_state, "round 6 does not match expected");
+    }
+
+    #[test]
+    #[cfg(feature = "rand")]
+    fn rand_state_is_valid() {
+        for _ in 0..10000 {
+            let state: GameState = rand::random();
+            assert!(state.check());
+        }
     }
 }
