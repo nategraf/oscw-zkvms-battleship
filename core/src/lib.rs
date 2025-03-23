@@ -1,4 +1,4 @@
-// Copyright 2022 Risc0, Inc.
+// Copyright 2025 RISC Zero, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ pub enum Direction {
     Vertical,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Ship {
     pub class: ShipClass,
     pub pos: Position,
@@ -82,27 +82,27 @@ pub struct Ship {
     pub hit_mask: u8,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct GameState {
     pub ships: Vec<Ship>,
     /// Entropy added to the game state such that the commitment is hiding.
     pub pepper: [u8; 16],
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RoundInput {
     pub state: GameState,
     pub shot: Position,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, Hash)]
 pub enum HitType {
     Miss,
     Hit,
     Sunk(ShipClass),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct RoundOutput {
     pub state: GameState,
     pub hit: HitType,
@@ -190,6 +190,17 @@ impl GameState {
 
         true
     }
+
+    pub fn apply_shot(&mut self, shot: Position) -> HitType {
+        for ship in self.ships.iter_mut() {
+            let hit = ship.apply_shot(shot);
+            match hit {
+                HitType::Hit | HitType::Sunk(_) => return hit,
+                HitType::Miss => continue,
+            }
+        }
+        HitType::Miss
+    }
 }
 
 impl Distribution<GameState> for StandardUniform {
@@ -197,7 +208,10 @@ impl Distribution<GameState> for StandardUniform {
         // Create a shuffled list of all positions on the board.
         let mut positions: Vec<Position> = (0..BOARD_SIZE)
             .zip(0..BOARD_SIZE)
-            .map(|(x, y)| Position::new(x as u32, y as u32))
+            .map(|(x, y)| Position {
+                x: x as u32,
+                y: y as u32,
+            })
             .collect();
         positions.shuffle(rng);
 
@@ -221,39 +235,7 @@ impl Distribution<GameState> for StandardUniform {
     }
 }
 
-impl RoundInput {
-    pub fn new(state: GameState, x: u32, y: u32) -> Self {
-        RoundInput {
-            state,
-            shot: Position::new(x, y),
-        }
-    }
-
-    pub fn process(&self) -> RoundOutput {
-        let mut state = self.state.clone();
-        let mut hit = HitType::Miss;
-        for ship in state.ships.iter_mut() {
-            hit = ship.shoot_at(self.shot);
-            match hit {
-                HitType::Hit | HitType::Sunk(_) => break,
-                HitType::Miss => continue,
-            }
-        }
-        RoundOutput { state, hit }
-    }
-}
-
-impl RoundOutput {
-    pub fn new(state: GameState, hit: HitType) -> Self {
-        RoundOutput { state, hit }
-    }
-}
-
 impl Position {
-    pub fn new(x: u32, y: u32) -> Self {
-        Position { x, y }
-    }
-
     pub fn step(self, dir: Direction, dist: u32) -> Self {
         match dir {
             Direction::Vertical => Self {
@@ -271,6 +253,15 @@ impl Position {
     #[must_use]
     pub fn in_bounds(&self) -> bool {
         self.x < BOARD_SIZE as u32 && self.y < BOARD_SIZE as u32
+    }
+}
+
+impl From<(u32, u32)> for Position {
+    fn from(value: (u32, u32)) -> Self {
+        Self {
+            x: value.0,
+            y: value.1,
+        }
     }
 }
 
@@ -299,16 +290,16 @@ impl Distribution<Direction> for StandardUniform {
 }
 
 impl Ship {
-    pub fn new(class: ShipClass, pos: Position, dir: Direction) -> Self {
+    pub fn new(class: ShipClass, pos: impl Into<Position>, dir: Direction) -> Self {
         Ship {
             class,
-            pos,
+            pos: pos.into(),
             dir,
             hit_mask: 0,
         }
     }
 
-    pub fn shoot_at(&mut self, shot: Position) -> HitType {
+    pub fn apply_shot(&mut self, shot: Position) -> HitType {
         let hit_index = self.points().position(|pos| pos == shot);
         match hit_index {
             Some(hit_index) => {
@@ -330,14 +321,14 @@ mod tests {
     #[test]
     fn basic() {
         let state = GameState {
-            ships: [
-                Ship::new(2, 3, Direction::Vertical),
-                Ship::new(3, 1, Direction::Horizontal),
-                Ship::new(4, 7, Direction::Vertical),
-                Ship::new(7, 5, Direction::Horizontal),
-                Ship::new(7, 7, Direction::Horizontal),
+            ships: vec![
+                Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal),
+                Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
+                Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
+                Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
             ],
-            pepper: 0xDEADBEEF,
+            pepper: rand::random(),
         };
 
         assert!(state.check());
@@ -346,14 +337,14 @@ mod tests {
     #[test]
     fn overlap() {
         let state = GameState {
-            ships: [
-                Ship::new(2, 3, Direction::Vertical),
-                Ship::new(3, 1, Direction::Horizontal),
-                Ship::new(2, 3, Direction::Vertical),
-                Ship::new(7, 5, Direction::Horizontal),
-                Ship::new(7, 7, Direction::Horizontal),
+            ships: vec![
+                Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal),
+                Ship::new(ShipClass::Cruiser, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
+                Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
             ],
-            pepper: 0xDEADBEEF,
+            pepper: rand::random(),
         };
 
         assert!(!state.check());
