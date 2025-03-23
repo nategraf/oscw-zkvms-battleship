@@ -22,7 +22,7 @@ use rand::{
 };
 use serde::{Deserialize, Serialize};
 
-use risc0_zkvm::sha::Digest;
+use risc0_zkvm::sha::{Digest, Sha256};
 
 pub const NUM_SHIPS: usize = 5;
 pub const BOARD_SIZE: usize = 10;
@@ -117,7 +117,7 @@ pub struct RoundCommit {
 }
 
 impl Ship {
-    pub fn points(&self) -> impl Iterator<Item = Position> + use<'_> {
+    pub fn points(&self) -> impl Iterator<Item = Position> + '_ {
         (0..self.class.span()).map(|offset| self.pos.step(self.dir, offset))
     }
 
@@ -201,6 +201,12 @@ impl GameState {
             }
         }
         HitType::Miss
+    }
+
+    pub fn commit(&self) -> Digest {
+        let serialized_state =
+            bincode::serialize(&self).expect("state serialization should always succeed");
+        *risc0_zkvm::sha::Impl::hash_bytes(&serialized_state)
     }
 }
 
