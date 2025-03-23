@@ -126,7 +126,7 @@ impl Ship {
     }
 
     pub fn in_bounds(&self) -> bool {
-        self.pos.in_bounds() && self.pos.step(self.dir, self.class.span()).in_bounds()
+        self.pos.in_bounds() && self.pos.step(self.dir, self.class.span() - 1).in_bounds()
     }
 }
 
@@ -191,7 +191,8 @@ impl GameState {
         true
     }
 
-    pub fn apply_shot(&mut self, shot: Position) -> HitType {
+    pub fn apply_shot(&mut self, shot: impl Into<Position>) -> HitType {
+        let shot = shot.into();
         for ship in self.ships.iter_mut() {
             let hit = ship.apply_shot(shot);
             match hit {
@@ -203,6 +204,7 @@ impl GameState {
     }
 }
 
+#[cfg(feature = "rand")]
 impl Distribution<GameState> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> GameState {
         // Create a shuffled list of all positions on the board.
@@ -280,6 +282,7 @@ impl Direction {
     }
 }
 
+#[cfg(feature = "rand")]
 impl Distribution<Direction> for StandardUniform {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Direction {
         match rng.random::<bool>() {
@@ -324,6 +327,18 @@ mod tests {
 
     #[test]
     fn basic() {
+        // Board
+        //  | 0 1 2 3 4 5 6 7 8 9 |
+        // 0|                     |
+        // 1|       BBBB          |
+        // 2|                     |
+        // 3|     A               |
+        // 4|     A               |
+        // 5|     A         DDD   |
+        // 6|     A               |
+        // 7|     A   C     EE    |
+        // 8|         C           |
+        // 9|         C           |
         let state = GameState {
             ships: vec![
                 Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
@@ -340,6 +355,18 @@ mod tests {
 
     #[test]
     fn overlap() {
+        // Board
+        //  | 0 1 2 3 4 5 6 7 8 9 |
+        // 0|                     |
+        // 1|       BBBB          |
+        // 2|     C               |
+        // 3|     *               |
+        // 4|     *               |
+        // 5|     A         DDD   |
+        // 6|     A               |
+        // 7|     A         EE    |
+        // 8|                     |
+        // 9|                     |
         let state = GameState {
             ships: vec![
                 Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
@@ -382,12 +409,12 @@ mod tests {
         };
 
         // Round 1
-        let state_expected = state.clone();
-        assert_eq!(state.apply_shot((1, 1).into()), HitType::Miss);
-        assert_eq!(state, state_expected, "round 1 should not change state");
+        let expected_state = state.clone();
+        assert_eq!(state.apply_shot((1, 1)), HitType::Miss);
+        assert_eq!(state, expected_state, "round 1 should not change state");
 
         // Round 2
-        let state_expected = GameState {
+        let expected_state = GameState {
             ships: vec![
                 Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
                 Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal).with_hit_mask(0x02),
@@ -397,62 +424,58 @@ mod tests {
             ],
             pepper,
         };
-        assert_eq!(state.apply_shot((4, 1).into()), HitType::Hit);
-        assert_eq!(state, state_expected, "round 2 does not match expected");
+        assert_eq!(state.apply_shot((4, 1)), HitType::Hit);
+        assert_eq!(state, expected_state, "round 2 does not match expected");
 
-        /* TODO Finish up this test
+        // Round 3
         // Duplicate hit results in no state change
-        let params3 = RoundInput::new(state1, 4, 1);
-        let result3 = result2.clone();
-        assert_eq!(params3.process(), result3);
+        let expected_state = state.clone();
+        assert_eq!(state.apply_shot((4, 1)), HitType::Hit);
+        assert_eq!(state, expected_state, "round 3 does not match expected");
 
-        let params4 = RoundInput::new(result3.state, 3, 1);
-        let result4 = RoundOutput::new(
-            GameState {
-                ships: [
-                    Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
-                    Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal),
-                    Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
-                    Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
-                    Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
-                ],
-                pepper: salt,
-            },
-            HitType::Hit,
-        );
-        assert_eq!(params4.process(), result4);
+        // Round 4
+        let expected_state = GameState {
+            ships: vec![
+                Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal).with_hit_mask(0x03),
+                Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
+                Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
+                Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
+            ],
+            pepper,
+        };
+        assert_eq!(state.apply_shot((3, 1)), HitType::Hit);
+        assert_eq!(state, expected_state, "round 4 does not match expected");
 
-        let params5 = RoundInput::new(result4.state, 6, 1);
-        let result5 = RoundOutput::new(
-            GameState {
-                ships: [
-                    Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
-                    Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal),
-                    Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
-                    Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
-                    Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
-                ],
-                pepper: salt,
-            },
-            HitType::Hit,
-        );
-        assert_eq!(params5.process(), result5);
+        // Round 5
+        let expected_state = GameState {
+            ships: vec![
+                Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal).with_hit_mask(0x0b),
+                Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
+                Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
+                Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
+            ],
+            pepper,
+        };
+        assert_eq!(state.apply_shot((6, 1)), HitType::Hit);
+        assert_eq!(state, expected_state, "round 5 does not match expected");
 
-        let params6 = RoundInput::new(result5.state, 5, 1);
-        let result6 = RoundOutput::new(
-            GameState {
-                ships: [
-                    Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
-                    Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal),
-                    Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
-                    Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
-                    Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
-                ],
-                pepper: salt,
-            },
-            HitType::Sunk(1),
+        // Round 6
+        let expected_state = GameState {
+            ships: vec![
+                Ship::new(ShipClass::Carrier, (2, 3), Direction::Vertical),
+                Ship::new(ShipClass::Battleship, (3, 1), Direction::Horizontal).with_hit_mask(0x0f),
+                Ship::new(ShipClass::Cruiser, (4, 7), Direction::Vertical),
+                Ship::new(ShipClass::Submarine, (7, 5), Direction::Horizontal),
+                Ship::new(ShipClass::Destroyer, (7, 7), Direction::Horizontal),
+            ],
+            pepper,
+        };
+        assert_eq!(
+            state.apply_shot((5, 1)),
+            HitType::Sunk(ShipClass::Battleship)
         );
-        assert_eq!(params6.process(), result6);
-        */
+        assert_eq!(state, expected_state, "round 6 does not match expected");
     }
 }
