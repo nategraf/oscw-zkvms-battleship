@@ -33,6 +33,8 @@ fn main() -> anyhow::Result<()> {
     receipt.verify(INIT_ID)?;
     let mut opponent_state_commit: Digest = receipt.journal.decode()?;
 
+    // Run the game one round at a time, requiring the opponent to prove that the properly applied
+    // each of out shots to their private state.
     let mut ship_classes = ShipClass::list().to_vec();
     loop {
         let shot = prompt_for_point()?;
@@ -43,7 +45,8 @@ fn main() -> anyhow::Result<()> {
         receipt.verify(ROUND_ID)?;
         let round_commit: RoundCommit = receipt.journal.decode()?;
 
-        // Update our state commitment that we are storing.
+        // Check that the correct state and shot were used, then update our state commitment that
+        // binds the opponent to use the updated state.
         ensure!(
             opponent_state_commit == round_commit.old_state,
             "opponent did not use the correct state"
@@ -65,6 +68,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        // If we've sunk each ship, the game is over.
         if ship_classes.is_empty() {
             break;
         }
@@ -76,13 +80,14 @@ fn main() -> anyhow::Result<()> {
 
 fn prompt_for_point() -> anyhow::Result<Position> {
     // Create regex for validating coordinates in format "x,y" where x and y are 0-9
-    let coord_regex = Regex::new(r"^([0-9]),\s*([0-9])$").unwrap();
+    let coord_regex = Regex::new(r"^\(?([0-9]),\s*([0-9])\)?$").unwrap();
 
     loop {
         // Prompt the user for coordinates
         let input = Text::new(
             "Enter coordinates (x,y) for a point on the 10x10 grid (0-9 for each value):",
         )
+        .with_placeholder("x, y")
         .prompt()?;
 
         // Try to parse and validate the input
@@ -119,6 +124,7 @@ impl Opponent {
         }
     }
 
+    // Produce a proof that the initial board state for the opponent is valid.
     pub fn prove_init(&self) -> anyhow::Result<Receipt> {
         let env = ExecutorEnv::builder().write(&self.state)?.build()?;
         let prove_info = default_prover().prove(env, INIT_ELF).unwrap();
@@ -126,6 +132,7 @@ impl Opponent {
         Ok(prove_info.receipt)
     }
 
+    // Apply the shot to the opponent's private state, and produce a proof for the update.
     pub fn prove_apply_shot(&mut self, shot: Position) -> anyhow::Result<Receipt> {
         let input = RoundInput {
             state: self.state.clone(),
