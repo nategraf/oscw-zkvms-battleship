@@ -78,39 +78,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn prompt_for_point() -> anyhow::Result<Position> {
-    // Create regex for validating coordinates in format "x,y" where x and y are 0-9
-    let coord_regex = Regex::new(r"^\(?([0-9]),\s*([0-9])\)?$").unwrap();
-
-    loop {
-        // Prompt the user for coordinates
-        let input = Text::new(
-            "Enter coordinates (x,y) for a point on the 10x10 grid (0-9 for each value):",
-        )
-        .with_placeholder("x, y")
-        .prompt()?;
-
-        // Try to parse and validate the input
-        if let Some(captures) = coord_regex.captures(input.trim()) {
-            // Extract x and y values
-            if let (Some(x_match), Some(y_match)) = (captures.get(1), captures.get(2)) {
-                let x: u32 = x_match.as_str().parse().unwrap(); // Safe to unwrap as regex ensures 0-9
-                let y: u32 = y_match.as_str().parse().unwrap();
-
-                // Additional validation (although regex already ensures 0-9)
-                if x <= 9 && y <= 9 {
-                    return Ok(Position { x, y });
-                }
-            }
-        }
-
-        // If we reach here, input was invalid
-        println!(
-            "Invalid coordinates! Please enter values as 'x,y' where both x and y are between 0-9."
-        );
-    }
-}
-
 // An opponent with their secret Battleship board that the CLI user will play against.
 // This opponent is a stand-in for e.g. another human you'd play over the network.
 pub struct Opponent {
@@ -145,5 +112,38 @@ impl Opponent {
         self.state.apply_shot(shot);
 
         Ok(prove_info.receipt)
+    }
+}
+
+fn prompt_for_point() -> anyhow::Result<Position> {
+    // Create regex for validating coordinates in format "x,y" where x and y are 0-9
+    let coord_regex = Regex::new(r"^\(?([0-9]),\s*([0-9])\)?$").unwrap();
+
+    loop {
+        // Prompt the user for coordinates
+        let input = Text::new(
+            "Enter coordinates (x,y) for a point on the 10x10 grid (0-9 for each value):",
+        )
+        .with_placeholder("x, y")
+        .prompt()?;
+
+        // Try to parse and validate the input
+        if let Some(captures) = coord_regex.captures(input.trim()) {
+            // Extract x and y values
+            if let (Some(x_match), Some(y_match)) = (captures.get(1), captures.get(2)) {
+                let x: u32 = x_match.as_str().parse().unwrap(); // Safe to unwrap as regex ensures 0-9
+                let y: u32 = y_match.as_str().parse().unwrap();
+
+                // Additional validation (although regex already ensures 0-9)
+                if x <= 9 && y <= 9 {
+                    return Ok(Position { x, y });
+                }
+            }
+        }
+
+        // If we reach here, input was invalid
+        println!(
+            "Invalid coordinates! Please enter values as 'x,y' where both x and y are between 0-9."
+        );
     }
 }
