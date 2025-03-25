@@ -69,5 +69,6 @@ This is a typical pattern for a project, with three crate:
         └── lib.rs
 ```
 
+[rustup]: https://rustup.rs
 [rust-toolchain]: rust-toolchain.toml
 [battleship-wiki]: https://en.wikipedia.org/wiki/Battleship_(game)
