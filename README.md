@@ -4,9 +4,8 @@ This is an example of how to use zkVMs, and in particular RISC Zero, used for th
 
 ## Quick Start
 
-First, make sure [rustup] is installed. The
-[`rust-toolchain.toml`][rust-toolchain] file will be used by `cargo` to
-automatically install the correct version.
+First, make sure [rustup] is installed.
+The [`rust-toolchain.toml`][rust-toolchain] file will be used by `cargo` to automatically install the correct version.
 
 This example implements a [battleship game][battleship-wiki] played on the CLI. You can run it with:
 
@@ -23,12 +22,12 @@ You can run both sets of tests with:
 RISC0_DEV_MODE=1 cargo test
 ```
 
-Note that this runs the tests in [development mode][#development-mode].
+This command runs the tests in [development mode](#development-mode).
 Removing this environment variable will run the full proving operations for each test.
 
 ### Development mode
 
-RISC Zero has a development mode which turns off both proof generation and proof verification.
+RISC Zero has a development mode which turns off both proof generation and **proof verification**.
 This is included to be used for testing and iterating on a guest design.
 
 Enabling dev mode happens through by setting the `RISC0_DEV_MODE` environment variable to `1` or `true`.
